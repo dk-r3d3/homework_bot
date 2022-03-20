@@ -7,7 +7,7 @@ import requests
 import telegram
 from dotenv import load_dotenv
 
-from exceptions import EndpointException, DictErrorException, \
+from exceptions import EndpointException, \
     ListErrorException, StatuseErrorException
 from logging.handlers import RotatingFileHandler
 
@@ -64,7 +64,7 @@ def check_response(response):
     """Проверка, что в полученном API eсть ключ 'homeworks'."""
     if not isinstance(response, dict):
         logging.error('response возвращет не словарь')
-        raise DictErrorException('response - не ословарь.Ошибка!')
+        raise TypeError('response - не словарь.Ошибка!')
     if not isinstance(response['homeworks'], list):
         logging.error('Домашняя работа не представлена списком.')
         raise ListErrorException('Домашняя работа не представлена списком.')
@@ -128,10 +128,12 @@ def main():
                 message_hom = parse_status(homework[0])
                 send_message(bot, message_hom)
             current_timestamp = response['current_date']
+            time.sleep(RETRY_TIME)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logger.exception(f'Сбой в работе программы: {error}')
             send_message(bot, message)
+            time.sleep(RETRY_TIME)
         finally:
             time.sleep(RETRY_TIME)
 
