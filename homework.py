@@ -7,8 +7,10 @@ import requests
 import telegram
 from dotenv import load_dotenv
 
-from exceptions import EndpointException, \
-    ListErrorException, StatuseErrorException
+from exceptions import (
+    EndpointException, ListErrorException,
+    StatuseErrorException
+)
 from logging.handlers import RotatingFileHandler
 
 load_dotenv()
@@ -37,7 +39,6 @@ def send_message(bot, message):
         logging.info(f'Отправлено сообщение: {message}')
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
     except Exception:
-        logging.error(f'Не удалось отправить сообщение: {message}.')
         raise Exception('Не удалось отправить сообщение.')
 
 
@@ -52,7 +53,6 @@ def get_api_answer(current_timestamp):
             params=params
         )
         if homework_statuses.status_code != 200:
-            logging.error(f'Эндпоинт на несуществующую страницу {ENDPOINT}.')
             raise Exception('Неуспешный запрос!')
     except Exception as error:
         logging.exception(f'Ошибка при запросе основного API: {error}')
@@ -65,12 +65,12 @@ def check_response(response):
     if not isinstance(response, dict):
         logging.error('response возвращет не словарь')
         raise TypeError('response - не словарь.Ошибка!')
-    if not isinstance(response['homeworks'], list):
-        logging.error('Домашняя работа не представлена списком.')
-        raise ListErrorException('Домашняя работа не представлена списком.')
     if 'homeworks' not in response:
         logging.error('Отсутствует ключ "homeworks" в response.')
         raise KeyError('Ключ "homeworks" не найден.')
+    if not isinstance(response['homeworks'], list):
+        logging.error('Домашняя работа не представлена списком.')
+        raise ListErrorException('Домашняя работа не представлена списком.')
     if 'current_date' not in response:
         logging.error('Отсутствует ключ "current_date" в response.')
         raise KeyError('Ключ "current_date" не найден.')
@@ -96,11 +96,6 @@ def parse_status(homework):
 
 def check_tokens():
     """Проверка доступности переменных окружения."""
-    logging.info('Получены следующие переменные окружения: '
-                 f'PRACTICUM_TOKEN = {PRACTICUM_TOKEN}, '
-                 f'TELEGRAM_TOKEN = {TELEGRAM_TOKEN}, '
-                 f'TELEGRAM_CHAT_ID= {TELEGRAM_CHAT_ID}'
-                 )
     tokens = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
     return all(tokens)
 
@@ -108,13 +103,15 @@ def check_tokens():
 def main():
     """Основная логика работы бота."""
     logger.info('Бот запущен!')
+    last_message = None
+    last_error = None
     try:
         bot = telegram.Bot(token=TELEGRAM_TOKEN)
     except telegram.error.InvalidToken:
         logger.critical('Ошибка в обязательных переменных окружения!')
         raise Exception('Неверный токен!')
     current_timestamp = int(time.time())
-    if check_tokens() is False:
+    if not check_tokens():
         logger.error('Проверь обязательные переменные окружения!')
 
     while True:
@@ -122,18 +119,18 @@ def main():
             response = get_api_answer(current_timestamp)
             homework = check_response(response)
             logger.info(f'homework: {homework}')
-            # если я не ошибаюсь, то работает это или нет,
-            # можно узнать только при изменении статуса проверки
             if len(homework) > 0:
                 message_hom = parse_status(homework[0])
-                send_message(bot, message_hom)
+                if last_message != message_hom:
+                    last_message = message_hom
+                    send_message(bot, message_hom)
             current_timestamp = response['current_date']
-            time.sleep(RETRY_TIME)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
-            logger.exception(f'Сбой в работе программы: {error}')
-            send_message(bot, message)
-            time.sleep(RETRY_TIME)
+            if last_error != message:
+                last_error = message
+                logger.exception(f'Сбой в работе программы: {error}')
+                send_message(bot, message)
         finally:
             time.sleep(RETRY_TIME)
 
