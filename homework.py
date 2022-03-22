@@ -104,7 +104,6 @@ def main():
     """Основная логика работы бота."""
     logger.info('Бот запущен!')
     last_message = None
-    last_error = None
     try:
         bot = telegram.Bot(token=TELEGRAM_TOKEN)
     except telegram.error.InvalidToken:
@@ -127,9 +126,9 @@ def main():
             current_timestamp = response['current_date']
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
-            if last_error != message:
-                last_error = message
-                logger.exception(f'Сбой в работе программы: {error}')
+            logger.exception(f'Сбой в работе программы: {error}')
+            if last_message != message:
+                last_message = message
                 send_message(bot, message)
         finally:
             time.sleep(RETRY_TIME)
