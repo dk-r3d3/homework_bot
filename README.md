@@ -1,2 +1,4 @@
 # homework_bot
-python telegram bot
+Python telegram bot
+
+Телеграмм-бот, позволяющий отслеживать статус проверки домашнего задания ревьюером.
